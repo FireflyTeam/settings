@@ -188,6 +188,25 @@ inline int wifi_stop_supplicant()
     return 0;
 }
 
+static const char SOFTAP_INTERFACE_STATIC_IP[] = "192.168.100.1";
+static const char DNSMASQ_CONF_DIR[] = "/userdata/bin/dnsmasq.conf";
+inline bool creat_dnsmasq_file()
+{
+    FILE* fp;
+    fp = fopen(DNSMASQ_CONF_DIR, "wt+");
+    if (fp != 0) {
+        fputs("user=root\n", fp);
+        fputs("listen-address=", fp);
+        fputs(SOFTAP_INTERFACE_STATIC_IP, fp);
+        fputs("\n", fp);
+        fputs("dhcp-range=192.168.100.50,192.168.100.150\n", fp);
+        fputs("server=/google/8.8.8.8\n", fp);
+        fclose(fp);
+        return true;
+    }
+    return true;
+}
+
 inline int wifi_start_hostapd()
 {
     char cmd[256];
@@ -197,6 +216,7 @@ inline int wifi_start_hostapd()
 
     console_run("ifconfig wlan0 up");
     console_run("ifconfig wlan0 192.168.100.1 netmask 255.255.255.0");
+#if 0
     console_run("echo 1 > /proc/sys/net/ipv4/ip_forward");
     console_run("iptables --flush");
     console_run("iptables --table nat --flush");
@@ -204,9 +224,14 @@ inline int wifi_start_hostapd()
     console_run("iptables --table nat --delete-chain");
     console_run("iptables --table nat --append POSTROUTING --out-interface eth0 -j MASQUERADE");
     console_run("iptables --append FORWARD --in-interface wlan0 -j ACCEPT");
+#endif
     memset(cmd, 0, sizeof(cmd));
     sprintf(cmd,"/usr/sbin/hostapd %s -B", HOSTAPD_CONF_DIR);
     detached_run(cmd);
+
+    creat_dnsmasq_file();
+    console_run("killall dnsmasq");
+    console_run("dnsmasq -C /userdata/bin/dnsmasq.conf --interface=wlan0");
 
     return 0;
 }
@@ -224,8 +249,10 @@ inline int wifi_stop_hostapd()
     console_run(cmd);
     free(cmd);
 
-    console_run("echo 0 > /proc/sys/net/ipv4/ip_forward");
+    //console_run("echo 0 > /proc/sys/net/ipv4/ip_forward");
     console_run("ifconfig wlan0 down");
+    console_run("killall dnsmasq");
+
     return 0;
 }
 

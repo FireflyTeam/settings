@@ -229,11 +229,8 @@ void QKeyBoard::btn_clicked()
         cur_lineEdit->backspace();
     } else if (objectName == "btnClose") {
         // foucs other widget first.
-        if (cur_lineEdit) {
-            QWidget tempWidget(cur_lineEdit->parentWidget());
-            tempWidget.show();
-            tempWidget.setFocus();
-        }
+        if (cur_lineEdit && cur_lineEdit->parentWidget())
+            cur_lineEdit->parentWidget()->setFocus();
         hidePanel();
     } else if (objectName == "btnSpace") {
         insertValue(" ");

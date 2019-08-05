@@ -41,7 +41,6 @@ void MainWindow::disableApplication()
 
 void MainWindow::enableApplication()
 {
-    qDebug("enable setting application");
     this->setVisible(true);
 }
 

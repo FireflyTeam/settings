@@ -19,11 +19,7 @@ int main(int argc, char *argv[])
 
     MainWindow w;
 
-#ifdef PLATFORM_WAYLAND
     w.showFullScreen();
-#else
-    w.showMaximized();
-#endif
 
     return app.exec();
 }

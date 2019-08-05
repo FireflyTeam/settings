@@ -61,7 +61,7 @@ void NetConnectedInfoDialog::initLayout()
     // detail information
     InfoItem *stateItem = new InfoItem(this, str_wifi_state, str_wifi_item_connected);
     signalItem = new InfoItem(this, str_wifi_signal_strength, "");
-    InfoItem *frequencyItem = new InfoItem(this, str_wifi_frequency, "2.4GHZ");
+    frequencyItem = new InfoItem(this, str_wifi_frequency, "2.4GHZ");
 
     // button layout.
     QHBoxLayout *buttonlayout = new QHBoxLayout;
@@ -92,16 +92,21 @@ void NetConnectedInfoDialog::initConnection()
     connect(m_cancelSaveButton, SIGNAL(clicked(bool)), this, SLOT(slot_onCancelSaveClicked()));
 }
 
-void NetConnectedInfoDialog::setItemInfo(QString name, QString signal)
+void NetConnectedInfoDialog::setItemInfo(QString name, QString signal, QString freq)
 {
     nameLabel->setText(name);
     signalItem->setItemValue(signal);
+
+    if (freq.toInt() > 3000)
+        frequencyItem->setItemValue("5G");
+    else
+        frequencyItem->setItemValue("2.4G");
 }
 
-int NetConnectedInfoDialog::showDialog(QWidget *parent, QString name, QString signalString)
+int NetConnectedInfoDialog::showDialog(QWidget *parent, QString name, QString signalString, QString freq)
 {
     NetConnectedInfoDialog *dialog = new NetConnectedInfoDialog(parent);
-    dialog->setItemInfo(name, signalString);
+    dialog->setItemInfo(name, signalString, freq);
 
     return dialog->exec();
 }

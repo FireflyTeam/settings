@@ -25,9 +25,9 @@ class NetConnectedInfoDialog : public QDialog
     Q_OBJECT
 public:
     NetConnectedInfoDialog(QWidget *parent = 0);
-    int static showDialog(QWidget *parent, QString name, QString signalString);
+    int static showDialog(QWidget *parent, QString name, QString signalString, QString freq);
 
-    void setItemInfo(QString name, QString signal);
+    void setItemInfo(QString name, QString signal, QString freq);
     int exec();
 
     enum ChosseResult
@@ -41,6 +41,7 @@ private:
     CPushButton *m_confirmButton;
     CPushButton *m_cancelSaveButton;
     InfoItem *signalItem;
+    InfoItem *frequencyItem;
 
     QEventLoop* m_eventLoop;
     ChosseResult m_chooseResult;

@@ -2,6 +2,7 @@
 #include "wpa_supplicant-2.5/src/common/wpa_ctrl.h"
 
 #include <dirent.h>
+#include <unistd.h>
 
 WPAManager *WPAManager::_instance = NULL;
 
@@ -145,7 +146,13 @@ static int str_match(const char *a, const char *b)
 
 QString WPAManager::getConnectingSSIDFromMsg(const char *msg)
 {
-    QString message(msg);
+    char msg_format[512];
+
+    qDebug("%s: msg: %s", __func__, msg);
+    spec_char_convers(msg, msg_format);
+    qDebug("%s: msg_format: %s", __func__, msg_format);
+
+    QString message(msg_format);
 
     int beginIndex = message.indexOf("SSID=") + 6;
     if (beginIndex == -1)
@@ -161,7 +168,13 @@ QString WPAManager::getConnectingSSIDFromMsg(const char *msg)
 
 QString WPAManager::getFailedSSIDFromMsg(const char *msg)
 {
-    QString message(msg);
+    char msg_format[512];
+
+    qDebug("%s: msg: %s", __func__, msg);
+    spec_char_convers(msg, msg_format);
+    qDebug("%s: msg_format: %s", __func__, msg_format);
+
+    QString message(msg_format);
 
     int beginIndex = message.indexOf("ssid=") + 6;
     if (beginIndex == -1)
@@ -271,6 +284,31 @@ void WPAManager::receiveMsgs()
     }
 }
 
+char *WPAManager::spec_char_convers(const char *buf, char *dst)
+{
+       char buf_temp[strlen(buf) + 1];
+       int i = 0;
+       unsigned long con;
+
+       memset(buf_temp, 0, sizeof(buf_temp));
+       while (*buf != '\0') {
+               if(*buf == '\\') {
+                       strcpy(buf_temp, buf);
+                       *buf_temp = '0';
+                       *(buf_temp + 4) = '\0';
+                       con = strtoul(buf_temp, NULL, 16);
+                       dst[i] = con;
+                       buf += 3;
+               } else {
+                       dst[i] = *buf;
+               }
+               i++;
+               buf++;
+       }
+       dst[i] = '\0';
+       return dst;
+}
+
 void WPAManager::updateScanResult()
 {
     char reply[2048];
@@ -278,6 +316,7 @@ void WPAManager::updateScanResult()
     int index;
     char cmd[20];
     QList<netWorkItem> netWorksList;
+    char reply_format[2048];
 
     index = 0;
     while (true) {
@@ -290,7 +329,9 @@ void WPAManager::updateScanResult()
             break;
         reply[reply_len] = '\0';
 
-        QString bss(reply);
+        spec_char_convers(reply, reply_format);
+
+        QString bss(reply_format);
         if (bss.isEmpty() || bss.startsWith("FAIL"))
             break;
 
@@ -428,7 +469,8 @@ void WPAManager::selectNetwork(const QString &sel)
     scan();
 }
 
-void WPAManager::connectNetwork(const QString &ssid, const QString &password)
+void WPAManager::connectNetwork(const QString &ssid, const QString &password,
+                                const QString &auth)
 {
     char reply[10], cmd[256];
     size_t reply_len;
@@ -446,7 +488,18 @@ void WPAManager::connectNetwork(const QString &ssid, const QString &password)
     id = atoi(reply);
 
     setNetworkParam(id, "ssid", ssid.toLocal8Bit().constData(), true);
-    setNetworkParam(id, "psk", password.toLocal8Bit().constData(), true);
+
+    if (auth.isEmpty() || auth == "OPEN" || auth == "WEP") {
+        setNetworkParam(id, "key_mgmt", "NONE", false);
+
+        if (auth == "WEP")
+            setNetworkParam(id, "wep_key0",
+                            password.toLocal8Bit().constData(), false);
+    } else if (auth.endsWith("PSK")) {
+        setNetworkParam(id, "psk", password.toLocal8Bit().constData(), true);
+    } else {
+        //TODO: EAP
+    }
 
     selectNetwork(QString::number(id, 10));
 
@@ -468,6 +521,10 @@ void WPAManager::removeNetwork(int networkId)
 
     memset(reply, 0, sizeof(reply));
     ctrlRequest("SAVE_CONFIG", reply, &reply_len);
+    qDebug("SAVE_CONFIG: %s", reply);
+    sleep(1);
+    ctrlRequest("ENABLE_NETWORK all", reply, &reply_len);
+    qDebug("enable_network all: %s", reply);
     scan();
 }
 
@@ -475,6 +532,7 @@ bool WPAManager::getConnectedItem(netWorkItem *connectedItem)
 {
     char buf[2048], *start, *end, *pos;
     size_t len;
+    char buf_format[4096];
 
     len = sizeof(buf) - 1;
     if (ctrl_conn == NULL || ctrlRequest("STATUS", buf, &len) < 0) {
@@ -483,7 +541,10 @@ bool WPAManager::getConnectedItem(netWorkItem *connectedItem)
     }
 
     buf[len] = '\0';
-    start = buf;
+
+    spec_char_convers(buf, buf_format);
+
+    start = buf_format;
 
     while (*start) {
         bool last = false;
@@ -527,6 +588,7 @@ QList<netWorkItem> WPAManager::getConfiguredNetWork()
     QList<netWorkItem> list;
     netWorkItem connectedItem;
     bool isConnected = getConnectedItem(&connectedItem);
+    char buf_format[4096];
 
     if (ctrl_conn == NULL)
         return list;
@@ -536,7 +598,10 @@ QList<netWorkItem> WPAManager::getConfiguredNetWork()
         return list;
 
     buf[len] = '\0';
-    start = strchr(buf, '\n');
+
+    spec_char_convers(buf, buf_format);
+
+    start = strchr(buf_format, '\n');
     if (start == NULL)
         return list;
     start++;

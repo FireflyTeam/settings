@@ -53,17 +53,73 @@ HotspotMainWidget::HotspotMainWidget(QWidget *parent) : BaseWidget(parent)
     connect(mainWindow, SIGNAL(retranslateUi()), this, SLOT(retranslateUi()));
 }
 
+static void execute(const char cmdline[], char recv_buff[], int len)
+{
+    FILE *stream = NULL;
+    char *tmp_buff = recv_buff;
+
+    memset(recv_buff, 0, len);
+
+    if ((stream = popen(cmdline, "r")) != NULL) {
+        while (fgets(tmp_buff, len, stream)) {
+            tmp_buff += strlen(tmp_buff);
+            len -= strlen(tmp_buff);
+            if (len <= 1)
+                break;
+        }
+        pclose(stream);
+    }
+}
+
+static void get_airkiss_ssid_password(char *ssid, char *password)
+{
+    char *cp = NULL;
+    char ret_buf[1024];
+
+    execute("cat /etc/hostapd.conf | grep ssid= | grep -v ignore_broadcast_ssid", ret_buf, 1024);
+    cp = strstr(ret_buf, "=");
+    if (cp) {
+        strcpy(ssid, cp + 1);
+        ssid[strlen(ssid) - 1] = '\0';
+    }
+
+    execute("cat /etc/hostapd.conf | grep wpa_passphrase=", ret_buf, 1024);
+    cp = strstr(ret_buf, "=");
+    if (cp) {
+        strcpy(password, cp + 1);
+        password[strlen(password) - 1] = '\0';
+    }
+}
+
 void HotspotMainWidget::initLayout()
 {
     QVBoxLayout *mainlayout = new QVBoxLayout;
 
+    char ssid[64];
+    char psk[64];
+
+    memset(ssid, 0, 64);
+    memset(psk, 0, 64);
+    get_airkiss_ssid_password(ssid, psk);
+
+    qDebug("SOFTAP: str_hotspot_name: %s", str_hotspot_name.toLocal8Bit().data());
+    qDebug("SOFTAP: str_hotspot_password: %s", str_hotspot_password.toLocal8Bit().data());
+
+    qDebug("SOFTAP: ssid: %s", ssid);
+    qDebug("SOFTAP: psk: %s", psk);
+
+    if ((strlen(ssid) > 60) || (ssid[0] == 0)) {
+        strcpy(ssid, "HOTSPOT_TEST");
+        strcpy(psk, "987654321");
+    }
+
     m_header = new SwitchHead(this);
 
     m_nameItem = new LineEditItem(this);
-    m_nameItem->setItem(str_hotspot_name, "HOTSPOT_TEST");
+    m_nameItem->setItem(str_hotspot_name, ssid);
 
     m_pskItem= new LineEditItem(this);
-    m_pskItem->setItem(str_hotspot_password, "987654321");
+    m_pskItem->setItem(str_hotspot_password, psk);
 
     QFrame *bottomLine = new QFrame(this);
     bottomLine->setFixedHeight(1);
