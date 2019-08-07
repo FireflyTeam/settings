@@ -51,11 +51,6 @@ int audio_volume(audio_volume_action action, long* outvol)
         return -4;
     }
 
-   if (!(elem = snd_mixer_find_selem(handle, sid))) {
-	fprintf(stderr, "no found the selem on mixer\n");
-	return -5;
-    }
-
     for (elem = snd_mixer_first_elem(handle); elem; elem = snd_mixer_elem_next(elem)) {
         if (snd_mixer_elem_get_type(elem) == SND_MIXER_ELEM_SIMPLE &&
                 snd_mixer_selem_is_active(elem)) {
